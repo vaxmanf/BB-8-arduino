@@ -1,0 +1,158 @@
+#include <ServoTimer2.h>
+#include <VirtualWire.h>
+#include <math.h>
+
+ServoTimer2 myservo;
+double pos=0;
+int servoPin=9;
+double x, y;
+
+const int receive_pin=11;
+
+String message;
+String myString;
+
+int xdata;
+int ydata;
+int in1=22,in2=24,in3=26,in4=28;
+int enableA=2,enableB=4,enableC=5,enableD=6;
+int motorSpeedA;
+int motorSpeedB;
+
+void setup() {
+  // put your setup code here, to run once:
+pinMode(enableA,OUTPUT);
+pinMode(enableB,OUTPUT);
+pinMode(in1,OUTPUT);
+pinMode(in2,OUTPUT);
+pinMode(in3,OUTPUT);
+pinMode(in4,OUTPUT);
+analogWrite(enableA,0);
+analogWrite(enableB,0);
+myservo.attach(servoPin);
+myservo.write(1450);
+delay(1000);
+Serial.begin(9600);
+delay(1000);
+ Serial.println("Setup");
+ vw_set_rx_pin(receive_pin);
+ vw_set_ptt_inverted(true);
+ vw_setup(2000);
+vw_rx_start();
+Serial.println("UNO is ready!");
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+//GETTING JOYSTCK OUTPUT
+uint8_t buf[VW_MAX_MESSAGE_LEN];
+uint8_t buflen=VW_MAX_MESSAGE_LEN;
+
+if(vw_get_message(buf,&buflen))
+  {
+  int i;
+  for(i=0;i<buflen;i++)
+    {
+    char c=(buf[i]);
+    message=message+c;
+    }
+    myString=message;
+   //Serial.println(message);
+
+    String l= getValue(myString,',',0);
+    String m= getValue(myString,',',1);
+  xdata=l.toInt();
+  ydata=m.toInt();
+  Serial.print(xdata);
+  Serial.print("        ");
+  Serial.println(ydata);
+  
+  
+if (ydata > 540) // need to change to cancle buzzing sound.
+ {
+  // Motor A Forward
+  digitalWrite(in1,HIGH);
+  digitalWrite(in2,HIGH);
+  motorSpeedA=map(ydata,536,1023,0,255); //change 512
+  analogWrite(enableA,motorSpeedA);
+  analogWrite(enableB,0);
+ }
+ else if (ydata < 490) //change 512
+  {
+  //Motor A Backward
+  digitalWrite(in1,HIGH);
+  digitalWrite(in2,HIGH);
+  motorSpeedA=map(ydata,489,0,0,255); //change 512
+  analogWrite(enableB,motorSpeedA);
+  analogWrite(enableA,0);
+  }
+  else 
+  {
+  motorSpeedA=0;
+  digitalWrite(in1,LOW);
+  digitalWrite(in2,LOW);
+  analogWrite(enableA,motorSpeedA);
+  analogWrite(enableB,motorSpeedA);
+  }
+
+  if (xdata > 510) // need to change to cancle buzzing sound.
+ {
+  // Motor A Forward
+  digitalWrite(in3,HIGH);
+  digitalWrite(in4,HIGH);
+  motorSpeedB=map(xdata,501,1023,0,255); //change 512
+  analogWrite(enableC,motorSpeedB);
+  analogWrite(enableD,0);
+ }
+ else if (xdata < 460) //change 512
+  {
+  //Motor A Backward
+  digitalWrite(in3,HIGH);
+  digitalWrite(in4,HIGH);
+  motorSpeedB=map(xdata,460,0,0,255); //change 512
+  analogWrite(enableD,motorSpeedB);
+  analogWrite(enableC,0);
+  }
+  else 
+  {
+  motorSpeedB=0;
+  digitalWrite(in3,LOW);
+  digitalWrite(in4,LOW);
+  analogWrite(enableC,motorSpeedB);
+  analogWrite(enableD,motorSpeedB);
+  }
+  
+  message="";
+  }
+  if(xdata<460 || xdata>510  || ydata<490  || ydata>540 )
+  {
+  x=map(xdata,0,1023,-511,511);
+  y=map(ydata,0,1023,-511,511);
+  pos = ((atan2(y,x))*180)/3.415;
+  if (pos<0)
+  {
+  pos= 360+pos;
+  }
+  //Serial.print("pos is: ");
+  //Serial.println(pos);
+  delay(5);
+  myservo.write(map(pos,0,360,1200,1700));
+  delay(5);
+  }
+}
+String getValue(String data,char separator,int index)
+{
+  int found=0;
+  int strIndex[]={0,-1};
+  int maxIndex=data.length() -1;
+  for(int i=0;i<=maxIndex && found <= index;i++)
+  {
+    if(data.charAt(i)==separator || i== maxIndex)
+    {
+      found++;
+      strIndex[0]=strIndex[1]+1;
+      strIndex[1]=(i==maxIndex) ? i+1 : i;
+    }
+  }
+  return found > index ? data.substring(strIndex[0],strIndex[1]) : "";
+}
